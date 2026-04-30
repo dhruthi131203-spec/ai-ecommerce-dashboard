@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from db import get_connection
+from db import conn, cursor
 from model import predict_sales
 
 app = Flask(__name__)
@@ -16,7 +16,7 @@ def home():
 def add_data():
     data = request.json
 
-    conn = get_connection()
+    
     cursor = conn.cursor()
 
     query = "INSERT INTO sales_data (customer_id, product, amount, purchase_date) VALUES (%s, %s, %s, %s)"
