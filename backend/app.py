@@ -1,6 +1,6 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
-from db import conn, cursor
+from db import conn
 from model import predict_sales
 
 app = Flask(__name__)
@@ -11,47 +11,78 @@ CORS(app)
 def home():
     return "Backend Running!"
 
-# Add data to MySQL
+# Add data to PostgreSQL
 @app.route('/add-data', methods=['POST'])
 def add_data():
-    data = request.json
+    try:
+        data = request.json
 
-    
-    cursor = conn.cursor()
+        cursor = conn.cursor()
 
-    query = "INSERT INTO sales_data (customer_id, product, amount, purchase_date) VALUES (%s, %s, %s, %s)"
-    values = (data['customer_id'], data['product'], data['amount'], data['date'])
+        query = """
+        INSERT INTO sales (customer_id, product, amount, date)
+        VALUES (%s, %s, %s, %s)
+        """
 
-    cursor.execute(query, values)
-    conn.commit()
+        values = (
+            data['customer_id'],
+            data['product'],
+            data['amount'],
+            data['date']
+        )
 
-    return jsonify({"message": "Data added successfully"})
+        cursor.execute(query, values)
+        conn.commit()
+
+        return jsonify({"message": "Data added successfully"})
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # Fetch data
 @app.route('/get-data', methods=['GET'])
 def get_data():
-    conn = get_connection()
-    cursor = conn.cursor(dictionary=True)
+    try:
+        cursor = conn.cursor()
 
-    cursor.execute("SELECT * FROM sales_data")
-    data = cursor.fetchall()
+        cursor.execute("SELECT customer_id, product, amount, date FROM sales")
+        rows = cursor.fetchall()
 
-    return jsonify(data)
+        data = []
+        for row in rows:
+            data.append({
+                "customer_id": row[0],
+                "product": row[1],
+                "amount": row[2],
+                "date": str(row[3])
+            })
+
+        return jsonify(data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 
 # AI prediction
 @app.route('/predict', methods=['GET'])
 def predict():
-    day = int(request.args.get('day'))
-    result = predict_sales(day)
+    try:
+        day = int(request.args.get('day'))
+        result = predict_sales(day)
 
-    return jsonify({"prediction": float(result)})
+        return jsonify({"prediction": float(result)})
 
-# Recommendation (extra feature)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+# Recommendation
 @app.route('/recommend', methods=['GET'])
 def recommend():
     return jsonify({"product": "Laptop"})
 
+
 if __name__ == '__main__':
     import os
-
-app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
