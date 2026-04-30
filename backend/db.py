@@ -1,10 +1,19 @@
-import mysql.connector
+import psycopg2
+import os
 
-def get_connection():
-    return mysql.connector.connect(
-        host="localhost",
-        user="project_user",
-        password="1234",
-        database="ecommerce_ai",
-        port=3306
-    )
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+conn = psycopg2.connect(DATABASE_URL)
+cursor = conn.cursor()
+
+# Create table if not exists
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS sales (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER,
+    product TEXT,
+    amount INTEGER,
+    date DATE
+);
+""")
+conn.commit()
