@@ -26,7 +26,7 @@ ChartJS.register(
   Legend
 );
 
-const API = import.meta.env.VITE_API_URL;
+const API = "https://ai-ecommerce-dashboard-2-znpk.onrender.com";
 console.log("API URL:", API);
 
 function App() {
