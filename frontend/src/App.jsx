@@ -1,242 +1,133 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
 import axios from "axios";
 
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-} from "chart.js";
-
-import { Bar, Line } from "react-chartjs-2";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
-
 const API = "https://ai-ecommerce-dashboard-2-znpk.onrender.com";
-console.log("API URL:", API);
 
 function App() {
   const [data, setData] = useState([]);
-  const [prediction, setPrediction] = useState(null);
-  const [recommendation, setRecommendation] = useState("");
   const [search, setSearch] = useState("");
-  const [dayInput, setDayInput] = useState("");
-
-  const [form, setForm] = useState({
-    customer_id: "",
-    product: "",
-    amount: "",
-    date: ""
-  });
+  const [prediction, setPrediction] = useState(null);
+  const [day, setDay] = useState("");
 
   // FETCH DATA
   const fetchData = async () => {
-    const res = await axios.get(`${API}/get-data`);
-    setData(res.data);
+    try {
+      const res = await axios.get(`${API}/get-data`);
+      setData(res.data);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+    }
   };
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // ADD DATA
-  const addData = async () => {
-    await axios.post(`${API}/add-data`, {
-      customer_id: Number(form.customer_id),
-      product: form.product,
-      amount: Number(form.amount),
-      date: form.date
-    });
+  // CALCULATIONS
+  const filteredData = data.filter((item) =>
+    item.product.toLowerCase().includes(search.toLowerCase())
+  );
 
-    fetchData();
-  };
+  const totalRevenue = filteredData.reduce(
+    (sum, item) => sum + item.amount,
+    0
+  );
 
-  // PREDICTION
-  const getPrediction = async () => {
-    const res = await axios.get(`${API}/predict?day=${dayInput}`);
-    setPrediction(res.data.prediction);
-  };
-
-  // RECOMMENDATION
-  const getRecommendation = async () => {
-    const res = await axios.get(`${API}/recommend`);
-    setRecommendation(res.data.product);
-  };
-
-  // FILTER DATA
-  const filteredData = useMemo(() => {
-    return data.filter(item =>
-      item.product.toLowerCase().includes(search.toLowerCase())
-    );
-  }, [data, search]);
-
-  // GROUP DATA
-  const groupedData = useMemo(() => {
-    const map = {};
-    filteredData.forEach(item => {
-      const product = item.product.toLowerCase();
-      map[product] = (map[product] || 0) + item.amount;
-    });
-    return map;
-  }, [filteredData]);
-
-  const labels = Object.keys(groupedData);
-  const values = Object.values(groupedData);
-
-  // KPI
-  const totalRevenue = values.reduce((a, b) => a + b, 0);
   const totalOrders = filteredData.length;
+
   const avgOrder =
-    totalOrders > 0 ? (totalRevenue / totalOrders).toFixed(2) : 0;
+    totalOrders === 0 ? 0 : (totalRevenue / totalOrders).toFixed(2);
 
   const topProduct =
-    labels.length > 0
-      ? labels.reduce((a, b) =>
-          groupedData[a] > groupedData[b] ? a : b
-        )
+    filteredData.length > 0
+      ? filteredData.reduce((a, b) =>
+          a.amount > b.amount ? a : b
+        ).product
       : "-";
 
-  // 🎨 BAR CHART
-  const chartData = {
-    labels,
-    datasets: [
-      {
-        label: "Total Sales",
-        data: values,
-        backgroundColor: [
-          "#3b82f6",
-          "#10b981",
-          "#f59e0b",
-          "#ef4444",
-          "#8b5cf6",
-          "#06b6d4"
-        ],
-        borderRadius: 10
-      }
-    ]
-  };
-
-  const chartOptions = {
-    responsive: true,
-    plugins: {
-      legend: {
-        labels: {
-          color: "#111827",
-          font: { size: 14, weight: "bold" }
-        }
-      }
-    },
-    scales: {
-      x: {
-        ticks: { color: "#6b7280" }
-      },
-      y: {
-        ticks: { color: "#6b7280" }
-      }
+  // PREDICTION
+  const handlePredict = async () => {
+    try {
+      const res = await axios.get(`${API}/predict?day=${day}`);
+      setPrediction(res.data.prediction);
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  // 📈 LINE CHART
-  const trendData = useMemo(() => {
-    const map = {};
-
-    filteredData.forEach(item => {
-
-      // ✅ FIX 1: use item.date (NOT purchase_date)
-      const date = new Date(item.date)
-        .toISOString()
-        .split("T")[0];
-
-      map[date] = (map[date] || 0) + item.amount;
-    });
-
-    const dates = Object.keys(map).sort();
-
-    return {
-      labels: dates,
-      datasets: [
-        {
-          label: "Sales Trend",
-          data: dates.map(d => map[d]),
-          borderColor: "#2563eb",
-          backgroundColor: "rgba(37,99,235,0.15)",
-          fill: true,
-          tension: 0.4,
-          pointBackgroundColor: "#1d4ed8",
-          pointRadius: 5,
-          borderWidth: 3
-        }
-      ]
-    };
-  }, [filteredData]);
-
-  // EXPORT CSV
-  const exportCSV = () => {
-    const headers = "Product,Amount,Date\n";
-
-    // ✅ FIX 2: use d.date (NOT purchase_date)
-    const rows = filteredData
-      .map(d => `${d.product},${d.amount},${d.date}`)
-      .join("\n");
-
-    const blob = new Blob([headers + rows], {
-      type: "text/csv"
-    });
-
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "sales.csv";
-    a.click();
-  };
-
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div style={{ padding: "20px" }}>
+      <h1 style={{ textAlign: "center" }}>AI E-Commerce Dashboard</h1>
 
-      <h1 className="text-4xl font-bold text-center text-blue-600 mb-6">
-        AI E-Commerce Dashboard
-      </h1>
-
-      <div className="grid md:grid-cols-3 gap-4 mb-6">
-        <div className="bg-white p-4 rounded-xl shadow text-center">
-          <p>Total Revenue</p>
-          <h2>₹{totalRevenue}</h2>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow text-center">
-          <p>Orders</p>
-          <h2>{totalOrders}</h2>
-        </div>
-        <div className="bg-white p-4 rounded-xl shadow text-center">
-          <p>Avg Order</p>
-          <h2>₹{avgOrder}</h2>
-        </div>
+      {/* TOP CARDS */}
+      <div style={{ display: "flex", gap: "20px", marginTop: "20px" }}>
+        <div> Total Revenue ₹{totalRevenue}</div>
+        <div> Orders {totalOrders}</div>
+        <div> Avg Order ₹{avgOrder}</div>
       </div>
 
-      <div className="bg-yellow-100 p-4 rounded-xl mb-4 text-center">
+      {/* TOP PRODUCT */}
+      <div style={{ marginTop: "20px" }}>
         🏆 Top Selling Product: {topProduct}
       </div>
 
+      {/* SEARCH */}
       <input
-        className="border p-2 rounded w-full mb-4"
+        type="text"
         placeholder="Search product..."
+        value={search}
         onChange={(e) => setSearch(e.target.value)}
+        style={{ marginTop: "20px", width: "100%" }}
       />
 
-      {/* rest unchanged */}
+      {/* ADD DATA */}
+      <div style={{ marginTop: "20px" }}>
+        <h3>Add Data</h3>
+        <input placeholder="Customer ID" id="cid" />
+        <input placeholder="Product" id="prod" />
+        <input placeholder="Amount" id="amt" />
+        <input placeholder="Date" id="date" />
+
+        <button
+          onClick={async () => {
+            await axios.post(`${API}/add-data`, {
+              customer_id: document.getElementById("cid").value,
+              product: document.getElementById("prod").value,
+              amount: document.getElementById("amt").value,
+              date: document.getElementById("date").value,
+            });
+            fetchData();
+          }}
+        >
+          Add Data
+        </button>
+      </div>
+
+      {/* PREDICTION */}
+      <div style={{ marginTop: "20px" }}>
+        <h3>AI Prediction</h3>
+        <input
+          placeholder="Enter day"
+          value={day}
+          onChange={(e) => setDay(e.target.value)}
+        />
+        <button onClick={handlePredict}>Predict</button>
+
+        {prediction && <p>Prediction: {prediction}</p>}
+      </div>
+
+      {/* RECOMMENDATION */}
+      <div style={{ marginTop: "20px" }}>
+        <h3>Recommendation</h3>
+        <button
+          onClick={async () => {
+            const res = await axios.get(`${API}/recommend`);
+            alert("Recommended: " + res.data.product);
+          }}
+        >
+          Get Recommendation
+        </button>
+      </div>
     </div>
   );
 }
