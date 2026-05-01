@@ -27,7 +27,7 @@ ChartJS.register(
 );
 
 const API = "https://ai-ecommerce-dashboard-2-znpk.onrender.com";
-console.log("API URL:", API);
+console.log("THIS FILE IS UPDATED");
 
 function App() {
   const [data, setData] = useState([]);
