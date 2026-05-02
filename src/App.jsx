@@ -9,36 +9,44 @@ import "./App.css";
 function App() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
-  const [filtered, setFiltered] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [productTotals, setProductTotals] = useState([]);
   const [trendData, setTrendData] = useState([]);
   const [prediction, setPrediction] = useState(0);
 
-  // ✅ CSV Upload
+  // ✅ SAFE CSV UPLOAD (NO CRASH)
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
+
+    if (!file) return;
 
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
       complete: (result) => {
-        const formatted = result.data.map(row => ({
-          customer_id: row.customer_id,
-          product: row.product.toLowerCase(),
-          amount: Number(row.amount),
-          date: new Date(row.date) // IMPORTANT
-        }));
+        try {
+          const formatted = result.data
+            .filter(row => row.product && row.amount && row.date)
+            .map(row => ({
+              customer_id: row.customer_id || "",
+              product: row.product.toLowerCase(),
+              amount: Number(row.amount) || 0,
+              date: row.date
+            }));
 
-        setData(formatted);
+          setData(formatted);
+        } catch (err) {
+          console.error("CSV Error:", err);
+          alert("Invalid CSV format ❌");
+        }
       }
     });
   };
 
-  // ✅ PROCESS DATA
   useEffect(() => {
     if (data.length === 0) return;
 
-    // -------- PRODUCT TOTAL --------
+    // ---------------- PRODUCT TOTAL ----------------
     const productMap = {};
     data.forEach(item => {
       productMap[item.product] =
@@ -52,39 +60,38 @@ function App() {
 
     setProductTotals(productArray);
 
-    // -------- SEARCH --------
+    // ---------------- SEARCH ----------------
     if (search !== "") {
-      const filteredItems = data.filter(item =>
+      const filtered = data.filter(item =>
         item.product.includes(search.toLowerCase())
       );
 
-      const searchMap = {};
-      filteredItems.forEach(item => {
-        searchMap[item.product] =
-          (searchMap[item.product] || 0) + item.amount;
+      const map = {};
+      filtered.forEach(item => {
+        map[item.product] = (map[item.product] || 0) + item.amount;
       });
 
-      const searchArray = Object.keys(searchMap).map(p => ({
-        product: p,
-        amount: searchMap[p]
-      }));
-
-      setFiltered(searchArray);
+      setFilteredData(
+        Object.keys(map).map(p => ({
+          product: p,
+          amount: map[p]
+        }))
+      );
     } else {
-      setFiltered([]);
+      setFilteredData([]);
     }
 
-    // -------- TREND (FIXED PART) --------
+    // ---------------- SALES TREND FIX ----------------
     const dateMap = {};
 
     data.forEach(item => {
-      const dateKey = item.date.toISOString().split("T")[0];
+      const d = new Date(item.date);
 
-      if (!dateMap[dateKey]) {
-        dateMap[dateKey] = 0;
-      }
+      if (isNaN(d)) return; // skip bad date
 
-      dateMap[dateKey] += item.amount;
+      const key = d.toISOString().split("T")[0];
+
+      dateMap[key] = (dateMap[key] || 0) + item.amount;
     });
 
     const trendArray = Object.keys(dateMap)
@@ -96,7 +103,7 @@ function App() {
 
     setTrendData(trendArray);
 
-    // -------- PREDICTION --------
+    // ---------------- PREDICTION ----------------
     const total = data.reduce((sum, item) => sum + item.amount, 0);
     setPrediction(Math.round(total / data.length));
 
@@ -104,7 +111,6 @@ function App() {
 
   return (
     <div className="container">
-
       <h1>AI E-Commerce Dashboard</h1>
 
       {/* CSV Upload */}
@@ -119,7 +125,7 @@ function App() {
       />
 
       {/* Search Results */}
-      {filtered.map((item, index) => (
+      {filteredData.map((item, index) => (
         <div key={index}>
           🔎 {item.product.toUpperCase()} → ₹{item.amount}
         </div>
@@ -128,35 +134,38 @@ function App() {
       {/* Prediction */}
       <div>🤖 Predicted Next Sale: ₹{prediction}</div>
 
-      {/* BAR CHART */}
+      {/* SALES BY PRODUCT */}
       <h3>Sales by Product</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={productTotals}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="product" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="amount" fill="#4CAF50" />
-        </BarChart>
-      </ResponsiveContainer>
+      {productTotals.length > 0 && (
+        <ResponsiveContainer width="100%" height={300}>
+          <BarChart data={productTotals}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="product" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="amount" fill="#4CAF50" />
+          </BarChart>
+        </ResponsiveContainer>
+      )}
 
-      {/* LINE CHART (FIXED) */}
+      {/* SALES TREND */}
       <h3>Sales Trend</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={trendData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="amount"
-            stroke="#ff5722"
-            strokeWidth={3}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-
+      {trendData.length > 0 && (
+        <ResponsiveContainer width="100%" height={300}>
+          <LineChart data={trendData}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="date" />
+            <YAxis />
+            <Tooltip />
+            <Line
+              type="monotone"
+              dataKey="amount"
+              stroke="#ff5722"
+              strokeWidth={3}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      )}
     </div>
   );
 }
