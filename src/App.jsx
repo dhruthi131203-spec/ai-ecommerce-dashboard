@@ -11,6 +11,7 @@ import {
   Tooltip,
   CartesianGrid,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
 
 function App() {
@@ -24,10 +25,9 @@ function App() {
     date: "",
   });
 
-  // COLORS FOR CHART
   const COLORS = ["#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#9C27B0"];
 
-  // INPUT CHANGE
+  // INPUT
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -77,7 +77,7 @@ function App() {
     item.product.includes(searchTerm.toLowerCase())
   );
 
-  // GROUP DATA
+  // GROUP BY PRODUCT
   const groupedData = Object.values(
     salesData.reduce((acc, item) => {
       if (!acc[item.product]) {
@@ -88,7 +88,7 @@ function App() {
     }, {})
   );
 
-  // SALES TREND
+  // GROUP BY DATE (FIXED)
   const trendData = Object.values(
     salesData.reduce((acc, item) => {
       if (!acc[item.date]) {
@@ -97,7 +97,7 @@ function App() {
       acc[item.date].total += item.amount;
       return acc;
     }, {})
-  );
+  ).sort((a, b) => new Date(a.date) - new Date(b.date)); // 🔥 IMPORTANT FIX
 
   // STATS
   const totalRevenue = salesData.reduce((sum, i) => sum + i.amount, 0);
@@ -109,7 +109,6 @@ function App() {
       ? groupedData.reduce((a, b) => (a.total > b.total ? a : b)).product
       : "-";
 
-  // SIMPLE AI PREDICTION
   const prediction =
     trendData.length > 0
       ? Math.round(
@@ -123,9 +122,9 @@ function App() {
 
       {/* STATS */}
       <div className="stats">
-        <div className="card">₹{totalRevenue} <br />Total Revenue</div>
-        <div className="card">{totalOrders} <br />Orders</div>
-        <div className="card">₹{avgOrder.toFixed(2)} <br />Avg Order</div>
+        <div className="card">₹{totalRevenue}<br />Total Revenue</div>
+        <div className="card">{totalOrders}<br />Orders</div>
+        <div className="card">₹{avgOrder.toFixed(2)}<br />Avg Order</div>
       </div>
 
       <div className="top-product">
@@ -143,10 +142,8 @@ function App() {
         onChange={(e) => setSearchTerm(e.target.value)}
       />
 
-      {/* SEARCH RESULTS (FIXED POSITION) */}
       {searchTerm && (
         <div className="search-results">
-          <h4>Search Results</h4>
           {filteredData.map((item, i) => (
             <div key={i}>
               {item.product} - ₹{item.amount}
@@ -155,7 +152,7 @@ function App() {
         </div>
       )}
 
-      {/* ADD DATA */}
+      {/* FORM */}
       <div className="form">
         <h3>Add Data</h3>
 
@@ -166,7 +163,7 @@ function App() {
 
         <button onClick={handleAddData}>Add Data</button>
 
-        {/* CSV UPLOAD RESTORED */}
+        {/* CSV UPLOAD (KEEPED) */}
         <input type="file" accept=".csv" onChange={handleCSVUpload} />
       </div>
 
@@ -175,7 +172,7 @@ function App() {
         🤖 Predicted Next Sale: ₹{prediction}
       </div>
 
-      {/* BAR CHART */}
+      {/* BAR CHART (FIXED COLORS) */}
       <h3>Sales by Product</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={groupedData}>
@@ -185,13 +182,13 @@ function App() {
           <Tooltip />
           <Bar dataKey="total">
             {groupedData.map((entry, index) => (
-              <cell key={index} fill={COLORS[index % COLORS.length]} />
+              <Cell key={index} fill={COLORS[index % COLORS.length]} />
             ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
 
-      {/* LINE CHART */}
+      {/* LINE CHART (FIXED) */}
       <h3>Sales Trend</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={trendData}>
@@ -199,7 +196,13 @@ function App() {
           <XAxis dataKey="date" />
           <YAxis />
           <Tooltip />
-          <Line type="monotone" dataKey="total" stroke="#2196F3" strokeWidth={3} />
+          <Line
+            type="monotone"
+            dataKey="total"
+            stroke="#4a7dfc"
+            strokeWidth={3}
+            dot={{ r: 4 }}
+          />
         </LineChart>
       </ResponsiveContainer>
     </div>
