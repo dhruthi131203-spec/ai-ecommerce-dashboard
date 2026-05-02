@@ -1,16 +1,7 @@
-body {
-  font-family: Arial;
-  background: #f5f7fb;
-}
-
 .container {
   max-width: 900px;
   margin: auto;
-  padding: 20px;
-}
-
-h1 {
-  text-align: center;
+  font-family: Arial;
 }
 
 .stats {
@@ -25,30 +16,17 @@ h1 {
   border-radius: 10px;
   width: 30%;
   text-align: center;
-  font-weight: bold;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-}
-
-.card span {
-  display: block;
-  font-size: 12px;
-  color: gray;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .top-product {
-  background: #ffe9a7;
+  background: #ffe8a1;
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 15px;
 }
 
-.search {
-  width: 100%;
-  padding: 10px;
-  margin-bottom: 10px;
-}
-
-.form input {
+input {
   width: 100%;
   padding: 10px;
   margin: 5px 0;
@@ -57,23 +35,21 @@ h1 {
 button {
   width: 100%;
   padding: 10px;
-  background: #3b82f6;
+  background: #4a7dfc;
   color: white;
   border: none;
-  margin-top: 10px;
   border-radius: 5px;
 }
 
-.results {
-  background: white;
+.search-results {
+  background: #f1f1f1;
   padding: 10px;
   margin-bottom: 10px;
-  border-radius: 8px;
 }
 
 .prediction {
-  background: #e0f7fa;
+  background: #d7f0f7;
   padding: 10px;
-  margin: 15px 0;
+  margin: 10px 0;
   border-radius: 8px;
 }
