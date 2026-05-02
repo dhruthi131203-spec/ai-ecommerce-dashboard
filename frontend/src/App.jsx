@@ -9,10 +9,10 @@ import {
   LineChart,
   Line,
   CartesianGrid,
+  Cell,
 } from "recharts";
 
 function App() {
-  // ✅ DEFAULT DATA (important for charts)
   const [salesData, setSalesData] = useState([
     { customerId: "1", product: "phone", amount: 50000, date: "2026-05-01" },
     { customerId: "2", product: "laptop", amount: 30000, date: "2026-05-02" },
@@ -29,7 +29,9 @@ function App() {
     date: "",
   });
 
-  // ✅ HANDLE INPUT
+  // 🎨 COLORS FOR EACH PRODUCT
+  const COLORS = ["#4CAF50", "#2196F3", "#FF9800", "#E91E63"];
+
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -37,7 +39,6 @@ function App() {
     });
   };
 
-  // ✅ ADD DATA
   const handleAddData = () => {
     if (!formData.product || !formData.amount || !formData.date) return;
 
@@ -57,16 +58,16 @@ function App() {
     });
   };
 
-  // ✅ SEARCH
+  // 🔍 SEARCH
   const filteredData = salesData.filter((item) =>
     item.product.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ✅ GROUPING
+  // 📊 GROUP DATA
   const groupedData = salesData.reduce((acc, item) => {
     const key = item.product.trim().toLowerCase();
     if (!acc[key]) acc[key] = 0;
-    acc[key] += Number(item.amount);
+    acc[key] += item.amount;
     return acc;
   }, {});
 
@@ -75,20 +76,14 @@ function App() {
     amount: groupedData[key],
   }));
 
-  // ✅ STATS
-  const totalRevenue = salesData.reduce(
-    (sum, item) => sum + Number(item.amount),
-    0
-  );
-
+  // 📈 STATS
+  const totalRevenue = salesData.reduce((sum, item) => sum + item.amount, 0);
   const totalOrders = salesData.length;
   const avgOrder = totalOrders ? totalRevenue / totalOrders : 0;
 
   const topProduct =
     chartData.length > 0
-      ? chartData.reduce((a, b) =>
-          a.amount > b.amount ? a : b
-        ).product
+      ? chartData.reduce((a, b) => (a.amount > b.amount ? a : b)).product
       : "-";
 
   return (
@@ -116,6 +111,24 @@ function App() {
         value={searchTerm}
         onChange={(e) => setSearchTerm(e.target.value)}
       />
+
+      {/* 🔥 SEARCH RESULTS MOVED UP */}
+      {searchTerm && (
+        <>
+          <h3>Search Results</h3>
+          {filteredData.length === 0 ? (
+            <p>No results found</p>
+          ) : (
+            filteredData.map((item, index) => (
+              <div key={index}>
+                {item.product.charAt(0).toUpperCase() +
+                  item.product.slice(1)}{" "}
+                - ₹{item.amount}
+              </div>
+            ))
+          )}
+        </>
+      )}
 
       {/* ADD DATA */}
       <div className="form">
@@ -152,21 +165,25 @@ function App() {
         <button onClick={handleAddData}>Add Data</button>
       </div>
 
-      {/* BAR CHART */}
+      {/* 📊 BAR CHART WITH COLORS */}
       <h3>Sales by Product</h3>
       <BarChart width={600} height={300} data={chartData}>
-        <XAxis dataKey="product" stroke="#555" />
-        <YAxis stroke="#555" />
+        <XAxis dataKey="product" />
+        <YAxis />
         <Tooltip />
         <CartesianGrid strokeDasharray="3 3" />
-        <Bar dataKey="amount" fill="#4CAF50" radius={[6, 6, 0, 0]} />
+        <Bar dataKey="amount">
+          {chartData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+          ))}
+        </Bar>
       </BarChart>
 
-      {/* LINE CHART */}
+      {/* 📈 LINE CHART */}
       <h3>Sales Trend</h3>
       <LineChart width={600} height={300} data={salesData}>
-        <XAxis dataKey="date" stroke="#555" />
-        <YAxis stroke="#555" />
+        <XAxis dataKey="date" />
+        <YAxis />
         <Tooltip />
         <CartesianGrid strokeDasharray="3 3" />
         <Line
@@ -174,18 +191,8 @@ function App() {
           dataKey="amount"
           stroke="#2196F3"
           strokeWidth={3}
-          dot={{ r: 5 }}
         />
       </LineChart>
-
-      {/* SEARCH RESULTS */}
-      <h3>Search Results</h3>
-      {filteredData.map((item, index) => (
-        <div key={index}>
-          {item.product.charAt(0).toUpperCase() + item.product.slice(1)} - ₹
-          {item.amount}
-        </div>
-      ))}
     </div>
   );
 }
