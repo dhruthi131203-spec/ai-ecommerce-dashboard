@@ -12,7 +12,11 @@ function App() {
   const [filtered, setFiltered] = useState([]);
   const [productTotals, setProductTotals] = useState([]);
   const [trendData, setTrendData] = useState([]);
-  const [prediction, setPrediction] = useState(0);
+
+  const [totalRevenue, setTotalRevenue] = useState(0);
+  const [orders, setOrders] = useState(0);
+  const [avgOrder, setAvgOrder] = useState(0);
+  const [topProduct, setTopProduct] = useState("");
 
   const [form, setForm] = useState({
     customer_id: "",
@@ -21,7 +25,7 @@ function App() {
     date: ""
   });
 
-  // ---------------- CSV UPLOAD ----------------
+  // ---------------- CSV UPLOAD (FIXED) ----------------
   const handleFileUpload = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -30,16 +34,16 @@ function App() {
       header: true,
       skipEmptyLines: true,
       complete: (result) => {
-        const cleanData = result.data
-          .filter(row => row.product && row.amount && row.date)
-          .map(row => ({
-            customer_id: row.customer_id || "",
-            product: row.product.toLowerCase(),
-            amount: Number(row.amount),
-            date: row.date
-          }));
+        const clean = result.data.map(row => ({
+          customer_id: row["Customer ID"] || row["customer_id"] || "",
+          product: (row["Product"] || row["product"] || "").toLowerCase(),
+          amount: Number(row["Amount"] || row["amount"] || 0),
+          date: row["Date"] || row["date"] || ""
+        }));
 
-        setData(cleanData);
+        console.log("Parsed CSV:", clean); // DEBUG
+
+        setData(clean);
       }
     });
   };
@@ -64,33 +68,45 @@ function App() {
     });
   };
 
-  // ---------------- MAIN LOGIC ----------------
+  // ---------------- PROCESS DATA ----------------
   useEffect(() => {
     if (data.length === 0) return;
 
+    // TOTALS
+    const total = data.reduce((sum, d) => sum + d.amount, 0);
+    setTotalRevenue(total);
+    setOrders(data.length);
+    setAvgOrder((total / data.length).toFixed(2));
+
     // PRODUCT TOTAL
     const productMap = {};
-    data.forEach(item => {
-      productMap[item.product] =
-        (productMap[item.product] || 0) + item.amount;
+    data.forEach(d => {
+      productMap[d.product] =
+        (productMap[d.product] || 0) + d.amount;
     });
 
-    setProductTotals(
-      Object.keys(productMap).map(p => ({
-        product: p,
-        amount: productMap[p]
-      }))
+    const productArray = Object.keys(productMap).map(p => ({
+      product: p,
+      amount: productMap[p]
+    }));
+
+    setProductTotals(productArray);
+
+    // TOP PRODUCT
+    const top = productArray.reduce((a, b) =>
+      a.amount > b.amount ? a : b
     );
+    setTopProduct(top.product);
 
     // SEARCH
     if (search !== "") {
-      const filteredItems = data.filter(item =>
-        item.product.includes(search.toLowerCase())
+      const res = data.filter(d =>
+        d.product.includes(search.toLowerCase())
       );
 
       const map = {};
-      filteredItems.forEach(item => {
-        map[item.product] = (map[item.product] || 0) + item.amount;
+      res.forEach(d => {
+        map[d.product] = (map[d.product] || 0) + d.amount;
       });
 
       setFiltered(
@@ -103,15 +119,14 @@ function App() {
       setFiltered([]);
     }
 
-    // SALES TREND (FIXED)
+    // TREND (FIXED)
     const dateMap = {};
+    data.forEach(d => {
+      const date = new Date(d.date);
+      if (isNaN(date)) return;
 
-    data.forEach(item => {
-      const d = new Date(item.date);
-      if (isNaN(d)) return;
-
-      const key = d.toISOString().split("T")[0];
-      dateMap[key] = (dateMap[key] || 0) + item.amount;
+      const key = date.toISOString().split("T")[0];
+      dateMap[key] = (dateMap[key] || 0) + d.amount;
     });
 
     setTrendData(
@@ -121,96 +136,77 @@ function App() {
       }))
     );
 
-    // PREDICTION
-    const total = data.reduce((sum, item) => sum + item.amount, 0);
-    setPrediction(Math.round(total / data.length));
-
   }, [data, search]);
 
   return (
     <div className="container">
       <h1>AI E-Commerce Dashboard</h1>
 
-      {/* CSV Upload */}
+      {/* STATS */}
+      <div className="cards">
+        <div>₹{totalRevenue}<br />Total Revenue</div>
+        <div>{orders}<br />Orders</div>
+        <div>₹{avgOrder}<br />Avg Order</div>
+      </div>
+
+      <div className="top-product">
+        🏆 Top Selling Product: {topProduct}
+      </div>
+
+      {/* CSV */}
       <input type="file" accept=".csv" onChange={handleFileUpload} />
 
-      {/* Search */}
+      {/* SEARCH */}
       <input
-        type="text"
         placeholder="Search product..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
       />
 
-      {/* Search Results */}
-      {filtered.map((item, index) => (
-        <div key={index}>
-          🔎 {item.product.toUpperCase()} → ₹{item.amount}
+      {filtered.map((item, i) => (
+        <div key={i}>
+          🔎 {item.product} → ₹{item.amount}
         </div>
       ))}
 
-      {/* ADD DATA (RESTORED) */}
+      {/* ADD DATA */}
       <h3>Add Data</h3>
-      <input
-        placeholder="Customer ID"
+      <input placeholder="Customer ID"
         value={form.customer_id}
-        onChange={(e) =>
-          setForm({ ...form, customer_id: e.target.value })
-        }
-      />
-      <input
-        placeholder="Product"
+        onChange={(e)=>setForm({...form,customer_id:e.target.value})}/>
+      <input placeholder="Product"
         value={form.product}
-        onChange={(e) =>
-          setForm({ ...form, product: e.target.value })
-        }
-      />
-      <input
-        placeholder="Amount"
+        onChange={(e)=>setForm({...form,product:e.target.value})}/>
+      <input placeholder="Amount"
         value={form.amount}
-        onChange={(e) =>
-          setForm({ ...form, amount: e.target.value })
-        }
-      />
-      <input
-        type="date"
+        onChange={(e)=>setForm({...form,amount:e.target.value})}/>
+      <input type="date"
         value={form.date}
-        onChange={(e) =>
-          setForm({ ...form, date: e.target.value })
-        }
-      />
+        onChange={(e)=>setForm({...form,date:e.target.value})}/>
 
       <button onClick={handleAdd}>Add Data</button>
 
-      {/* Prediction */}
-      <div>🤖 Predicted Next Sale: ₹{prediction}</div>
-
-      {/* BAR CHART */}
+      {/* BAR */}
       <h3>Sales by Product</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={productTotals}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="product" />
-          <YAxis />
-          <Tooltip />
-          <Bar dataKey="amount" fill="#4CAF50" />
+          <CartesianGrid strokeDasharray="3 3"/>
+          <XAxis dataKey="product"/>
+          <YAxis/>
+          <Tooltip/>
+          <Bar dataKey="amount" fill="#4CAF50"/>
         </BarChart>
       </ResponsiveContainer>
 
-      {/* LINE CHART */}
+      {/* LINE */}
       <h3>Sales Trend</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={trendData}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="amount"
-            stroke="#ff5722"
-            strokeWidth={3}
-          />
+          <CartesianGrid strokeDasharray="3 3"/>
+          <XAxis dataKey="date"/>
+          <YAxis/>
+          <Tooltip/>
+          <Line type="monotone" dataKey="amount" stroke="#ff5722"/>
         </LineChart>
       </ResponsiveContainer>
     </div>
