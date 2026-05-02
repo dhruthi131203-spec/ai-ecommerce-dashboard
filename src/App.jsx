@@ -9,7 +9,7 @@ import "./App.css";
 function App() {
   const [data, setData] = useState([]);
   const [search, setSearch] = useState("");
-  const [filteredData, setFilteredData] = useState([]);
+  const [filtered, setFiltered] = useState([]);
   const [productTotals, setProductTotals] = useState([]);
   const [trendData, setTrendData] = useState([]);
   const [prediction, setPrediction] = useState(0);
@@ -22,11 +22,11 @@ function App() {
       header: true,
       skipEmptyLines: true,
       complete: (result) => {
-        const formatted = result.data.map((row) => ({
+        const formatted = result.data.map(row => ({
           customer_id: row.customer_id,
-          product: row.product?.toLowerCase(),
+          product: row.product.toLowerCase(),
           amount: Number(row.amount),
-          date: row.date // IMPORTANT: keep as string
+          date: new Date(row.date) // IMPORTANT
         }));
 
         setData(formatted);
@@ -34,75 +34,69 @@ function App() {
     });
   };
 
-  // ✅ MAIN LOGIC
+  // ✅ PROCESS DATA
   useEffect(() => {
     if (data.length === 0) return;
 
-    // ---------------- PRODUCT TOTAL ----------------
+    // -------- PRODUCT TOTAL --------
     const productMap = {};
-    data.forEach((item) => {
+    data.forEach(item => {
       productMap[item.product] =
         (productMap[item.product] || 0) + item.amount;
     });
 
-    const productArray = Object.keys(productMap).map((p) => ({
+    const productArray = Object.keys(productMap).map(p => ({
       product: p,
       amount: productMap[p]
     }));
 
     setProductTotals(productArray);
 
-    // ---------------- SEARCH ----------------
+    // -------- SEARCH --------
     if (search !== "") {
-      const filtered = data.filter((item) =>
+      const filteredItems = data.filter(item =>
         item.product.includes(search.toLowerCase())
       );
 
-      const map = {};
-      filtered.forEach((item) => {
-        map[item.product] = (map[item.product] || 0) + item.amount;
+      const searchMap = {};
+      filteredItems.forEach(item => {
+        searchMap[item.product] =
+          (searchMap[item.product] || 0) + item.amount;
       });
 
-      const result = Object.keys(map).map((p) => ({
+      const searchArray = Object.keys(searchMap).map(p => ({
         product: p,
-        amount: map[p]
+        amount: searchMap[p]
       }));
 
-      setFilteredData(result);
+      setFiltered(searchArray);
     } else {
-      setFilteredData([]);
+      setFiltered([]);
     }
 
-    // ---------------- SALES TREND (FIXED) ----------------
+    // -------- TREND (FIXED PART) --------
     const dateMap = {};
 
-    data.forEach((item) => {
-      if (!item.date) return;
+    data.forEach(item => {
+      const dateKey = item.date.toISOString().split("T")[0];
 
-      const d = new Date(item.date);
-
-      // Skip invalid dates
-      if (isNaN(d)) return;
-
-      const key = d.toISOString().split("T")[0];
-
-      if (!dateMap[key]) {
-        dateMap[key] = 0;
+      if (!dateMap[dateKey]) {
+        dateMap[dateKey] = 0;
       }
 
-      dateMap[key] += item.amount;
+      dateMap[dateKey] += item.amount;
     });
 
     const trendArray = Object.keys(dateMap)
       .sort()
-      .map((date) => ({
-        date: date,
+      .map(date => ({
+        date,
         amount: dateMap[date]
       }));
 
     setTrendData(trendArray);
 
-    // ---------------- PREDICTION ----------------
+    // -------- PREDICTION --------
     const total = data.reduce((sum, item) => sum + item.amount, 0);
     setPrediction(Math.round(total / data.length));
 
@@ -110,6 +104,7 @@ function App() {
 
   return (
     <div className="container">
+
       <h1>AI E-Commerce Dashboard</h1>
 
       {/* CSV Upload */}
@@ -124,7 +119,7 @@ function App() {
       />
 
       {/* Search Results */}
-      {filteredData.map((item, index) => (
+      {filtered.map((item, index) => (
         <div key={index}>
           🔎 {item.product.toUpperCase()} → ₹{item.amount}
         </div>
@@ -133,7 +128,7 @@ function App() {
       {/* Prediction */}
       <div>🤖 Predicted Next Sale: ₹{prediction}</div>
 
-      {/* SALES BY PRODUCT */}
+      {/* BAR CHART */}
       <h3>Sales by Product</h3>
       <ResponsiveContainer width="100%" height={300}>
         <BarChart data={productTotals}>
@@ -145,7 +140,7 @@ function App() {
         </BarChart>
       </ResponsiveContainer>
 
-      {/* SALES TREND */}
+      {/* LINE CHART (FIXED) */}
       <h3>Sales Trend</h3>
       <ResponsiveContainer width="100%" height={300}>
         <LineChart data={trendData}>
@@ -161,6 +156,7 @@ function App() {
           />
         </LineChart>
       </ResponsiveContainer>
+
     </div>
   );
 }
