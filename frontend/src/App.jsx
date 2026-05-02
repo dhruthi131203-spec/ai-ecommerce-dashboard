@@ -1,205 +1,207 @@
-import { useEffect, useState } from "react";
-import axios from "axios";
+import React, { useState } from "react";
 import "./App.css";
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   Tooltip,
-  Legend,
-  ResponsiveContainer
+  LineChart,
+  Line,
 } from "recharts";
 
 function App() {
-  const API = "https://ai-ecommerce-dashboard-2-znpk.onrender.com";
+  const [salesData, setSalesData] = useState([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [prediction, setPrediction] = useState("");
 
-  const [data, setData] = useState([]);
-  const [form, setForm] = useState({
-    customer_id: "",
+  const [formData, setFormData] = useState({
+    customerId: "",
     product: "",
     amount: "",
-    date: ""
+    date: "",
   });
-  const [prediction, setPrediction] = useState("");
-  const [search, setSearch] = useState("");
 
-  // FETCH DATA
-  const fetchData = async () => {
-    try {
-      const res = await axios.get(`${API}/get-data`);
-      console.log("DATA:", res.data);
+  // ✅ NORMALIZE FUNCTION
+  const normalize = (str) => str.trim().toLowerCase();
 
-      // ensure correct format
-      if (Array.isArray(res.data)) {
-        setData(res.data);
-      } else {
-        setData([]);
-      }
-    } catch (error) {
-      console.error("FETCH ERROR:", error);
-    }
+  // ✅ HANDLE INPUT
+  const handleChange = (e) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // ✅ ADD DATA
+  const handleAddData = () => {
+    if (!formData.product || !formData.amount || !formData.date) return;
 
-  // ADD DATA
-  const addData = async () => {
-    try {
-      await axios.post(`${API}/add-data`, {
-        customer_id: Number(form.customer_id),
-        product: form.product,
-        amount: Number(form.amount),
-        date: form.date
-      });
+    const newEntry = {
+      ...formData,
+      product: normalize(formData.product),
+      amount: Number(formData.amount),
+    };
 
-      setForm({
-        customer_id: "",
-        product: "",
-        amount: "",
-        date: ""
-      });
+    setSalesData([...salesData, newEntry]);
 
-      fetchData();
-    } catch (error) {
-      console.error("ADD DATA ERROR:", error);
-    }
+    setFormData({
+      customerId: "",
+      product: "",
+      amount: "",
+      date: "",
+    });
   };
 
-  // AI PREDICTION
-  const getPrediction = async (day) => {
-    try {
-      const res = await axios.get(`${API}/predict?day=${day}`);
-      setPrediction(res.data.prediction);
-    } catch (error) {
-      console.error("PREDICTION ERROR:", error);
-    }
-  };
-
-  // FILTER DATA
-  const filteredData = data.filter((item) =>
-    item.product.toLowerCase().includes(search.toLowerCase())
+  // ✅ SEARCH
+  const filteredData = salesData.filter((item) =>
+    normalize(item.product).includes(normalize(searchTerm))
   );
 
-  // ✅ FIXED CALCULATIONS (IMPORTANT)
-  const totalRevenue = data.reduce(
-    (sum, item) => sum + Number(item.amount),
+  // ✅ GROUP DATA
+  const groupedData = salesData.reduce((acc, item) => {
+    const key = normalize(item.product);
+
+    if (!acc[key]) acc[key] = 0;
+    acc[key] += item.amount;
+
+    return acc;
+  }, {});
+
+  const chartData = Object.keys(groupedData).map((key) => ({
+    name: key,
+    amount: groupedData[key],
+  }));
+
+  // ✅ STATS
+  const totalRevenue = salesData.reduce(
+    (sum, item) => sum + item.amount,
     0
   );
 
-  const orders = data.length;
+  const totalOrders = salesData.length;
 
-  const avgOrder = orders ? (totalRevenue / orders).toFixed(2) : 0;
-
-  const productMap = {};
-  data.forEach((item) => {
-    productMap[item.product] =
-      (productMap[item.product] || 0) + Number(item.amount);
-  });
-
-  const chartData = Object.keys(productMap).map((key) => ({
-    product: key,
-    amount: productMap[key]
-  }));
+  const avgOrder = totalOrders ? totalRevenue / totalOrders : 0;
 
   const topProduct =
     chartData.length > 0
-      ? chartData.reduce((a, b) => (a.amount > b.amount ? a : b)).product
+      ? chartData.reduce((a, b) =>
+          a.amount > b.amount ? a : b
+        ).name
       : "-";
+
+  // ✅ LINE DATA
+  const lineData = salesData.map((item) => ({
+    date: item.date,
+    amount: item.amount,
+  }));
+
+  // ✅ AI PREDICTION
+  const handlePredict = () => {
+    if (totalOrders === 0) {
+      setPrediction("No data");
+    } else {
+      const avg = totalRevenue / totalOrders;
+      setPrediction(`₹${avg.toFixed(2)}`);
+    }
+  };
 
   return (
     <div className="container">
       <h1>AI E-Commerce Dashboard</h1>
 
       {/* STATS */}
-      <div className="cards">
+      <div className="stats">
         <div className="card">Total Revenue ₹{totalRevenue}</div>
-        <div className="card">Orders {orders}</div>
-        <div className="card">Avg Order ₹{avgOrder}</div>
+        <div className="card">Orders {totalOrders}</div>
+        <div className="card">
+          Avg Order ₹{avgOrder.toFixed(2)}
+        </div>
       </div>
 
       <div className="top-product">
-        🏆 Top Selling Product: {topProduct}
+        🏆 Top Selling Product:{" "}
+        {topProduct.charAt(0).toUpperCase() + topProduct.slice(1)}
       </div>
 
       {/* SEARCH */}
       <input
+        type="text"
         placeholder="Search product..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
       />
 
       {/* ADD DATA */}
       <div className="form">
         <h3>Add Data</h3>
+
         <input
+          name="customerId"
           placeholder="Customer ID"
-          value={form.customer_id}
-          onChange={(e) =>
-            setForm({ ...form, customer_id: e.target.value })
-          }
+          value={formData.customerId}
+          onChange={handleChange}
         />
+
         <input
+          name="product"
           placeholder="Product"
-          value={form.product}
-          onChange={(e) =>
-            setForm({ ...form, product: e.target.value })
-          }
+          value={formData.product}
+          onChange={handleChange}
         />
+
         <input
+          name="amount"
           placeholder="Amount"
-          value={form.amount}
-          onChange={(e) =>
-            setForm({ ...form, amount: e.target.value })
-          }
+          value={formData.amount}
+          onChange={handleChange}
         />
+
         <input
+          name="date"
           type="date"
-          value={form.date}
-          onChange={(e) =>
-            setForm({ ...form, date: e.target.value })
-          }
+          value={formData.date}
+          onChange={handleChange}
         />
-        <button onClick={addData}>Add Data</button>
+
+        <button onClick={handleAddData}>Add Data</button>
       </div>
 
       {/* AI PREDICTION */}
-      <div className="prediction">
+      <div className="form">
         <h3>AI Prediction</h3>
-        <input
-          placeholder="Enter day"
-          onChange={(e) => getPrediction(e.target.value)}
-        />
+        <input placeholder="Enter day (optional)" />
+        <button onClick={handlePredict}>Predict</button>
         <p>Prediction: {prediction}</p>
       </div>
 
-      {/* BAR CHART */}
+      {/* BAR GRAPH */}
       <h3>Sales by Product</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <BarChart data={chartData}>
-          <XAxis dataKey="product" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Bar dataKey="amount" fill="#4CAF50" />
-        </BarChart>
-      </ResponsiveContainer>
+      <BarChart width={600} height={300} data={chartData}>
+        <XAxis dataKey="name" />
+        <YAxis />
+        <Tooltip />
+        <Bar dataKey="amount" fill="#4CAF50" />
+      </BarChart>
 
-      {/* LINE CHART */}
+      {/* LINE GRAPH */}
       <h3>Sales Trend</h3>
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={data}>
-          <XAxis dataKey="date" />
-          <YAxis />
-          <Tooltip />
-          <Legend />
-          <Line type="monotone" dataKey="amount" stroke="#2196F3" />
-        </LineChart>
-      </ResponsiveContainer>
+      <LineChart width={600} height={300} data={lineData}>
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Line type="monotone" dataKey="amount" stroke="#8884d8" />
+      </LineChart>
+
+      {/* SEARCH RESULTS */}
+      <h3>Search Results</h3>
+      {filteredData.map((item, index) => (
+        <div key={index}>
+          {item.product.charAt(0).toUpperCase() +
+            item.product.slice(1)}{" "}
+          - ₹{item.amount}
+        </div>
+      ))}
     </div>
   );
 }
