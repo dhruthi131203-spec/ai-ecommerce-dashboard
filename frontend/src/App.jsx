@@ -12,7 +12,7 @@ import {
 } from "recharts";
 
 function App() {
-  // ✅ DEFAULT DATA (IMPORTANT FIX)
+  // ✅ DEFAULT DATA (important for charts)
   const [salesData, setSalesData] = useState([
     { customerId: "1", product: "phone", amount: 50000, date: "2026-05-01" },
     { customerId: "2", product: "laptop", amount: 30000, date: "2026-05-02" },
@@ -29,6 +29,7 @@ function App() {
     date: "",
   });
 
+  // ✅ HANDLE INPUT
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -36,6 +37,7 @@ function App() {
     });
   };
 
+  // ✅ ADD DATA
   const handleAddData = () => {
     if (!formData.product || !formData.amount || !formData.date) return;
 
@@ -150,23 +152,30 @@ function App() {
         <button onClick={handleAddData}>Add Data</button>
       </div>
 
-      {/* ✅ BAR CHART */}
+      {/* BAR CHART */}
       <h3>Sales by Product</h3>
-      <BarChart width={500} height={300} data={chartData}>
-        <XAxis dataKey="product" />
-        <YAxis />
-        <Tooltip />
-        <Bar dataKey="amount" />
-      </BarChart>
-
-      {/* ✅ LINE CHART */}
-      <h3>Sales Trend</h3>
-      <LineChart width={500} height={300} data={salesData}>
-        <XAxis dataKey="date" />
-        <YAxis />
+      <BarChart width={600} height={300} data={chartData}>
+        <XAxis dataKey="product" stroke="#555" />
+        <YAxis stroke="#555" />
         <Tooltip />
         <CartesianGrid strokeDasharray="3 3" />
-        <Line type="monotone" dataKey="amount" />
+        <Bar dataKey="amount" fill="#4CAF50" radius={[6, 6, 0, 0]} />
+      </BarChart>
+
+      {/* LINE CHART */}
+      <h3>Sales Trend</h3>
+      <LineChart width={600} height={300} data={salesData}>
+        <XAxis dataKey="date" stroke="#555" />
+        <YAxis stroke="#555" />
+        <Tooltip />
+        <CartesianGrid strokeDasharray="3 3" />
+        <Line
+          type="monotone"
+          dataKey="amount"
+          stroke="#2196F3"
+          strokeWidth={3}
+          dot={{ r: 5 }}
+        />
       </LineChart>
 
       {/* SEARCH RESULTS */}
