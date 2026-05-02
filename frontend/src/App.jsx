@@ -8,12 +8,19 @@ import {
   Tooltip,
   LineChart,
   Line,
+  CartesianGrid,
 } from "recharts";
 
 function App() {
-  const [salesData, setSalesData] = useState([]);
+  // ✅ DEFAULT DATA (IMPORTANT FIX)
+  const [salesData, setSalesData] = useState([
+    { customerId: "1", product: "phone", amount: 50000, date: "2026-05-01" },
+    { customerId: "2", product: "laptop", amount: 30000, date: "2026-05-02" },
+    { customerId: "3", product: "phone", amount: 55000, date: "2026-05-03" },
+    { customerId: "4", product: "tablet", amount: 25000, date: "2026-05-04" },
+  ]);
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [prediction, setPrediction] = useState("");
 
   const [formData, setFormData] = useState({
     customerId: "",
@@ -22,10 +29,6 @@ function App() {
     date: "",
   });
 
-  // ✅ NORMALIZE FUNCTION
-  const normalize = (str) => str.trim().toLowerCase();
-
-  // ✅ HANDLE INPUT
   const handleChange = (e) => {
     setFormData({
       ...formData,
@@ -33,13 +36,12 @@ function App() {
     });
   };
 
-  // ✅ ADD DATA
   const handleAddData = () => {
     if (!formData.product || !formData.amount || !formData.date) return;
 
     const newEntry = {
       ...formData,
-      product: normalize(formData.product),
+      product: formData.product.trim().toLowerCase(),
       amount: Number(formData.amount),
     };
 
@@ -55,56 +57,37 @@ function App() {
 
   // ✅ SEARCH
   const filteredData = salesData.filter((item) =>
-    normalize(item.product).includes(normalize(searchTerm))
+    item.product.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // ✅ GROUP DATA
+  // ✅ GROUPING
   const groupedData = salesData.reduce((acc, item) => {
-    const key = normalize(item.product);
-
+    const key = item.product.trim().toLowerCase();
     if (!acc[key]) acc[key] = 0;
-    acc[key] += item.amount;
-
+    acc[key] += Number(item.amount);
     return acc;
   }, {});
 
   const chartData = Object.keys(groupedData).map((key) => ({
-    name: key,
+    product: key,
     amount: groupedData[key],
   }));
 
   // ✅ STATS
   const totalRevenue = salesData.reduce(
-    (sum, item) => sum + item.amount,
+    (sum, item) => sum + Number(item.amount),
     0
   );
 
   const totalOrders = salesData.length;
-
   const avgOrder = totalOrders ? totalRevenue / totalOrders : 0;
 
   const topProduct =
     chartData.length > 0
       ? chartData.reduce((a, b) =>
           a.amount > b.amount ? a : b
-        ).name
+        ).product
       : "-";
-
-  // ✅ LINE DATA
-  const lineData = salesData.map((item) => ({
-    date: item.date,
-    amount: item.amount,
-  }));
-
-  // ✅ AI PREDICTION
-  const handlePredict = () => {
-    if (totalOrders === 0) {
-      setPrediction("No data");
-    } else {
-      const avg = totalRevenue / totalOrders;
-      setPrediction(`₹${avg.toFixed(2)}`);
-    }
-  };
 
   return (
     <div className="container">
@@ -114,14 +97,14 @@ function App() {
       <div className="stats">
         <div className="card">Total Revenue ₹{totalRevenue}</div>
         <div className="card">Orders {totalOrders}</div>
-        <div className="card">
-          Avg Order ₹{avgOrder.toFixed(2)}
-        </div>
+        <div className="card">Avg Order ₹{avgOrder.toFixed(2)}</div>
       </div>
 
       <div className="top-product">
         🏆 Top Selling Product:{" "}
-        {topProduct.charAt(0).toUpperCase() + topProduct.slice(1)}
+        {topProduct !== "-"
+          ? topProduct.charAt(0).toUpperCase() + topProduct.slice(1)
+          : "-"}
       </div>
 
       {/* SEARCH */}
@@ -167,39 +150,31 @@ function App() {
         <button onClick={handleAddData}>Add Data</button>
       </div>
 
-      {/* AI PREDICTION */}
-      <div className="form">
-        <h3>AI Prediction</h3>
-        <input placeholder="Enter day (optional)" />
-        <button onClick={handlePredict}>Predict</button>
-        <p>Prediction: {prediction}</p>
-      </div>
-
-      {/* BAR GRAPH */}
+      {/* ✅ BAR CHART */}
       <h3>Sales by Product</h3>
-      <BarChart width={600} height={300} data={chartData}>
-        <XAxis dataKey="name" />
+      <BarChart width={500} height={300} data={chartData}>
+        <XAxis dataKey="product" />
         <YAxis />
         <Tooltip />
-        <Bar dataKey="amount" fill="#4CAF50" />
+        <Bar dataKey="amount" />
       </BarChart>
 
-      {/* LINE GRAPH */}
+      {/* ✅ LINE CHART */}
       <h3>Sales Trend</h3>
-      <LineChart width={600} height={300} data={lineData}>
+      <LineChart width={500} height={300} data={salesData}>
         <XAxis dataKey="date" />
         <YAxis />
         <Tooltip />
-        <Line type="monotone" dataKey="amount" stroke="#8884d8" />
+        <CartesianGrid strokeDasharray="3 3" />
+        <Line type="monotone" dataKey="amount" />
       </LineChart>
 
       {/* SEARCH RESULTS */}
       <h3>Search Results</h3>
       {filteredData.map((item, index) => (
         <div key={index}>
-          {item.product.charAt(0).toUpperCase() +
-            item.product.slice(1)}{" "}
-          - ₹{item.amount}
+          {item.product.charAt(0).toUpperCase() + item.product.slice(1)} - ₹
+          {item.amount}
         </div>
       ))}
     </div>
